@@ -13,6 +13,7 @@
   <a href="#视频流支持">视频流支持</a> ·
   <a href="#使用说明">使用说明</a> ·
   <a href="#english">English</a> ·
+  <a href="README.pt-br.md">Português (BR)</a> ·
   <a href="https://github.com/AlexTOOT/LensCast/releases/tag/v0.5.31-100">下载 APK</a>
 </p>
 
