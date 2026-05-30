@@ -19,13 +19,31 @@
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboardHidden|orientation|screenSize"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="com.opencode.multilensipcam.START" />
+                <action android:name="com.opencode.multilensipcam.STOP" />
+                <action android:name="com.opencode.multilensipcam.TOGGLE" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".StreamControlReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.opencode.multilensipcam.START" />
+                <action android:name="com.opencode.multilensipcam.STOP" />
+                <action android:name="com.opencode.multilensipcam.TOGGLE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

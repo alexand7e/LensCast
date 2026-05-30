@@ -313,6 +313,24 @@ class MainActivity : AppCompatActivity() {
         updateUrl()
         updateBatteryStatus(registerReceiver(batteryStatusReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED)))
         checkPermissionAndLoad()
+        handleStreamIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleStreamIntent(intent)
+    }
+
+    private fun handleStreamIntent(intent: Intent?) {
+        when (intent?.action) {
+            StreamControlReceiver.ACTION_START_STREAM -> ensurePermissionAndStart()
+            StreamControlReceiver.ACTION_STOP_STREAM -> stopStreaming("Stopped via intent")
+            StreamControlReceiver.ACTION_TOGGLE_STREAM -> {
+                if (isStreaming) stopStreaming("Stopped via intent")
+                else ensurePermissionAndStart()
+            }
+        }
     }
 
     override fun onStart() {
