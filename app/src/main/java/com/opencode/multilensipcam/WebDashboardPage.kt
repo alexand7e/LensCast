@@ -567,9 +567,9 @@ object WebDashboardPage {
                     </div>
                     <div class="api-quick-links">
                       <span class="api-quick-label">API:</span>
-                      <a class="button" href="/api/start" data-i18n="apiStart">Start</a>
-                      <a class="button danger" href="/api/stop" data-i18n="apiStop">Stop</a>
-                      <a class="button" href="/api/toggle" data-i18n="apiToggle">Toggle</a>
+                      <button id="apiStartButton" class="button" type="button" data-i18n="apiStart">Start</button>
+                      <button id="apiStopButton" class="button danger" type="button" data-i18n="apiStop">Stop</button>
+                      <button id="apiToggleButton" class="button" type="button" data-i18n="apiToggle">Toggle</button>
                     </div>
                     <div class="audio-strip">
                       <label class="inline-toggle">
@@ -1823,6 +1823,9 @@ object WebDashboardPage {
                   audioToggle.addEventListener('change', setAudioEnabled);
                   applyManualResolutionButton.addEventListener('click', applyManualResolution);
                   streamingToggleButton.addEventListener('click', toggleStreaming);
+                  document.getElementById('apiStartButton').addEventListener('click', async () => { await startStreaming(); });
+                  document.getElementById('apiStopButton').addEventListener('click', async () => { await stopStreaming(); });
+                  document.getElementById('apiToggleButton').addEventListener('click', async () => { await toggleStreaming(); });
                   scanCamerasButton.addEventListener('click', scanCameras);
                   refreshVerifiedCamerasButton.addEventListener('click', loadVerifiedCameras);
                   clearScanCacheButton.addEventListener('click', clearScanCache);
