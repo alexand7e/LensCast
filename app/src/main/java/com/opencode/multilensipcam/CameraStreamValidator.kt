@@ -23,10 +23,14 @@ class CameraStreamValidator(
             ?: repository.chooseRecommendedSize(capabilities)
         val targetFps = repository.chooseTargetFpsRange(capabilities, 30)?.upper
             ?: repository.chooseRecommendedFps(capabilities)
-        val texture = SurfaceTexture(0).apply {
-            setDefaultBufferSize(outputSize.width, outputSize.height)
+        val texture = try {
+            SurfaceTexture(0).apply {
+                setDefaultBufferSize(outputSize.width, outputSize.height)
+            }
+        } catch (t: Throwable) {
+            return CameraStreamValidationResult(false, 0, "${t.javaClass.simpleName}: ${t.message?.take(120)}")
         }
-        val frames = AtomicInteger(0)
+        val frames = AtomicInteger()
         val validationStreamer = CameraStreamer(
             cameraManager = cameraManager,
             onFrame = { frames.incrementAndGet() },

@@ -244,7 +244,14 @@ class MainActivity : AppCompatActivity() {
             onStatus = ::updateStatus,
             videoOverlayStatusProvider = ::currentVideoOverlayStatus,
             mjpegOutputRotationProvider = ::currentMjpegOutputRotationDegrees,
-            mjpegConsumerActive = { server.hasRecentMjpegClients(MJPEG_IDLE_GRACE_MS) }
+            mjpegConsumerActive = { server.hasRecentMjpegClients(MJPEG_IDLE_GRACE_MS) },
+            onCameraDisconnected = {
+                runOnUiThread {
+                    if (isStreaming) {
+                        stopStreaming("Camera disconnected")
+                    }
+                }
+            }
         )
         audioStreamer = AudioStreamer(
             onAccessUnit = { accessUnit ->
@@ -348,7 +355,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        wasStreamingBeforeBackground = isStreaming
+        if (isStreaming) {
+            stopStreaming("Stopped by background")
+        }
+        wasStreamingBeforeBackground = false
         runCatching {
             (getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
                 ?.unregisterDisplayListener(displayRotationListener)

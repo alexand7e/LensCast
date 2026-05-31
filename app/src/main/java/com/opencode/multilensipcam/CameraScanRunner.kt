@@ -15,6 +15,22 @@ class CameraScanRunner(
         options: List<CameraLensOption>,
         isChineseUi: Boolean
     ): CameraScanResponse {
+        return try {
+            runInternal(options, isChineseUi)
+        } catch (throwable: Throwable) {
+            CameraScanResponse(
+                ok = false,
+                state = stateFactory.buildState(isChineseUi),
+                results = emptyList(),
+                error = "${throwable.javaClass.simpleName}: ${throwable.message?.take(200)}"
+            )
+        }
+    }
+
+    private fun runInternal(
+        options: List<CameraLensOption>,
+        isChineseUi: Boolean
+    ): CameraScanResponse {
         val debugState = repository.buildDebugState(packageName)
         val candidates = debugState.probes
             .filter { probe -> probe.accessible && probe.cameraId.all(Char::isDigit) }

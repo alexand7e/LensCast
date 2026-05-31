@@ -46,7 +46,8 @@ class CameraStreamer(
     private val onStatus: (String) -> Unit,
     private val videoOverlayStatusProvider: () -> VideoOverlayStatus = { VideoOverlayStatus(false, 25, null, false) },
     private val mjpegOutputRotationProvider: () -> Int = { 0 },
-    private val mjpegConsumerActive: () -> Boolean = { true }
+    private val mjpegConsumerActive: () -> Boolean = { true },
+    private val onCameraDisconnected: (() -> Unit)? = null
 ) {
     private var cameraDevice: CameraDevice? = null
     private var captureSession: CameraCaptureSession? = null
@@ -253,11 +254,13 @@ class CameraStreamer(
 
                 override fun onDisconnected(camera: CameraDevice) {
                     onStatus("Camera disconnected")
+                    onCameraDisconnected?.invoke()
                     camera.close()
                 }
 
                 override fun onError(camera: CameraDevice, error: Int) {
                     onStatus("Camera error: $error")
+                    onCameraDisconnected?.invoke()
                     camera.close()
                 }
             },
