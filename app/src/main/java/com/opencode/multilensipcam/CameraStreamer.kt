@@ -80,6 +80,8 @@ class CameraStreamer(
     private var activePreviewSurface: Surface? = null
     private var activeReaderSurface: Surface? = null
     private var activeEncoderSurface: Surface? = null
+    private var backgroundSurfaceTexture: SurfaceTexture? = null
+    private var backgroundSurface: Surface? = null
     private val streamGeneration = AtomicLong(0L)
     private val overlayTimeFormat = SimpleDateFormat("MM/dd/yy HH:mm:ss", Locale.US)
     private val overlayRenderer = PixelFontOverlayRenderer()
@@ -277,6 +279,7 @@ class CameraStreamer(
         runCatching { sessionExecutor?.shutdownNow() }
         runCatching { encodeExecutor?.shutdownNow() }
         stopVideoEncoder()
+        releaseBackgroundSurface()
         captureSession = null
         cameraDevice = null
         imageReader = null
@@ -796,6 +799,64 @@ class CameraStreamer(
 
     private fun isCurrentCameraStream(generation: Long, camera: CameraDevice): Boolean {
         return isCurrentStreamGeneration(generation) && cameraDevice === camera
+    }
+
+    fun switchToBackgroundMode() {
+        backgroundHandler?.post {
+            val camera = cameraDevice ?: return@post
+            val config = currentConfig ?: return@post
+            val oldSession = captureSession ?: return@post
+            val readerSurface = activeReaderSurface ?: return@post
+            val encoderSurface = activeEncoderSurface
+            val generation = streamGeneration.get()
+
+            val bgSurfaceTexture = try {
+                SurfaceTexture(0)
+            } catch (_: Exception) {
+                return@post
+            }
+            bgSurfaceTexture.setDefaultBufferSize(config.outputSize.width, config.outputSize.height)
+            val bgSurface = Surface(bgSurfaceTexture)
+            backgroundSurfaceTexture = bgSurfaceTexture
+            backgroundSurface = bgSurface
+            activePreviewSurface = bgSurface
+
+            runCatching { oldSession.stopRepeating() }
+            runCatching { oldSession.close() }
+            captureSession = null
+
+            createLogicalSession(camera, bgSurface, readerSurface, encoderSurface, generation)
+        }
+    }
+
+    fun switchToForegroundMode(textureView: SurfaceTexture) {
+        backgroundHandler?.post {
+            val camera = cameraDevice ?: return@post
+            val config = currentConfig ?: return@post
+            val oldSession = captureSession ?: return@post
+            val readerSurface = activeReaderSurface ?: return@post
+            val encoderSurface = activeEncoderSurface
+            val generation = streamGeneration.get()
+
+            releaseBackgroundSurface()
+
+            textureView.setDefaultBufferSize(config.outputSize.width, config.outputSize.height)
+            val previewSurface = Surface(textureView)
+            activePreviewSurface = previewSurface
+
+            runCatching { oldSession.stopRepeating() }
+            runCatching { oldSession.close() }
+            captureSession = null
+
+            createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, generation)
+        }
+    }
+
+    private fun releaseBackgroundSurface() {
+        backgroundSurface?.let { runCatching { it.release() } }
+        backgroundSurfaceTexture?.let { runCatching { it.release() } }
+        backgroundSurface = null
+        backgroundSurfaceTexture = null
     }
 
     private fun applyControls(

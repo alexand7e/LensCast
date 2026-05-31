@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedMjpegPipeline = MjpegPipeline.YUV_JPEG
     private var useFullMjpegSize = true
     private var previewAdjustment = PreviewAdjustment.DEFAULT
+    private var isInBackgroundMode = false
     private var isManualResolutionMode = false
     private var isUnlimitedFpsSelected = false
     private var isPanelOpen = true
@@ -347,22 +348,27 @@ class MainActivity : AppCompatActivity() {
     private fun setupPreviewSurfaceListener() {
         binding.previewView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-                if (wasStreamingBeforeBackground && !isStreaming && hasCameraPermission()) {
+                if (isInBackgroundMode && isStreaming) {
+                    streamer.switchToForegroundMode(surface)
+                    isInBackgroundMode = false
+                    wasStreamingBeforeBackground = false
+                    updateKeepScreenOn(true)
+                } else if (wasStreamingBeforeBackground && !isStreaming && hasCameraPermission()) {
                     startStreaming()
+                    wasStreamingBeforeBackground = false
                 }
                 wasStreamingBeforeBackground = false
             }
 
             override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
                 if (isStreaming) {
+                    isInBackgroundMode = true
                     wasStreamingBeforeBackground = true
-                    streamingSession.shutdown()
-                    StreamingForegroundService.stop(this@MainActivity)
+                    if (::streamer.isInitialized) {
+                        streamer.switchToBackgroundMode()
+                    }
                     updateKeepScreenOn(false)
-                    updateStreamingUiState()
-                    updateUrl()
-                    updateParameterSummary()
-                    updateStatus("Surface destroyed")
+                    updateStatus("Background streaming")
                 }
                 return true
             }
@@ -381,8 +387,11 @@ class MainActivity : AppCompatActivity() {
         refreshLandscapeStreamingOrientation(force = true)
         if (wasStreamingBeforeBackground && !isStreaming && hasCameraPermission()) {
             startStreaming()
+            wasStreamingBeforeBackground = false
         }
-        wasStreamingBeforeBackground = false
+        if (!isInBackgroundMode) {
+            wasStreamingBeforeBackground = false
+        }
     }
 
     override fun onStop() {

@@ -52,12 +52,13 @@ class StreamingSessionController(
             return
         }
         val option = request.option ?: return
-        val texture = request.previewTexture
-        if (texture == null) {
+        val capabilities = request.capabilities ?: return
+        val texture: SurfaceTexture = request.previewTexture ?: try {
+            SurfaceTexture(0)
+        } catch (_: Exception) {
             updateStatus("Preview surface not ready")
             return
         }
-        val capabilities = request.capabilities ?: return
         val runtimeControls = request.runtimeControls ?: return
 
         val config = CameraStreamConfigs.build(
