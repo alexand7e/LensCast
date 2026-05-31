@@ -12,6 +12,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import org.json.JSONObject
 
 class MjpegHttpServer(
     private val port: Int,
@@ -168,11 +169,35 @@ class MjpegHttpServer(
             socket.soTimeout = 15_000
             val reader = socket.getInputStream().bufferedReader()
             val requestLine = reader.readLine() ?: return
-            val rawTarget = requestLine.split(" ").getOrNull(1) ?: "/"
+            val parts = requestLine.split(" ")
+            val method = parts.getOrNull(0) ?: "GET"
+            val rawTarget = parts.getOrNull(1) ?: "/"
             val target = rawTarget.substringBefore("?")
-            val query = WebHttpQueryParser.parse(rawTarget.substringAfter("?", ""))
-            while (reader.readLine()?.isNotEmpty() == true) {
-                // Drain request headers.
+            val query = WebHttpQueryParser.parse(rawTarget.substringAfter("?", "")).toMutableMap()
+
+            var contentLength = 0
+            while (true) {
+                val header = reader.readLine() ?: break
+                if (header.isEmpty()) break
+                if (header.startsWith("Content-Length:", ignoreCase = true)) {
+                    contentLength = header.substringAfter(":").trim().toIntOrNull() ?: 0
+                }
+            }
+            if (contentLength > 0) {
+                val body = CharArray(contentLength).also { reader.read(it, 0, contentLength) }.concatToString()
+                if (body.trimStart().startsWith("{")) {
+                    val json = JSONObject(body)
+                    json.keys().forEach { key ->
+                        val value = json.get(key)
+                        if (value is Boolean) {
+                            query[key] = if (value) "true" else "false"
+                        } else if (value is Number) {
+                            query[key] = value.toString()
+                        } else {
+                            query[key] = value?.toString() ?: ""
+                        }
+                    }
+                }
             }
 
             val frozenSnapshotId = WebHttpRoutes.frozenSnapshotId(target)
