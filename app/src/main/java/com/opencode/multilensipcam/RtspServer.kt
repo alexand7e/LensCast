@@ -71,7 +71,7 @@ class RtspServer(
             val socket = ServerSocket()
             try {
                 socket.reuseAddress = true
-                socket.bind(InetSocketAddress(port))
+                socket.bind(InetSocketAddress("127.0.0.1", port))
             } catch (exception: Exception) {
                 running.set(false)
                 runCatching { socket.close() }

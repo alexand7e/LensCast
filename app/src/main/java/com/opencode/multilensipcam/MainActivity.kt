@@ -100,6 +100,7 @@ class MainActivity : AppCompatActivity() {
     private val port = 41737
     private val rtspPort = 8554
     private var previousScreenBrightness: Float? = null
+    private var wasStreamingBeforeBackground = false
     private val h264IdleHandler = Handler(Looper.getMainLooper())
     private val h264IdleStopRunnable = Runnable { stopH264IfStillIdle() }
     private val mjpegDemandSyncHandler = Handler(Looper.getMainLooper())
@@ -340,9 +341,14 @@ class MainActivity : AppCompatActivity() {
             Handler(Looper.getMainLooper())
         )
         refreshLandscapeStreamingOrientation(force = true)
+        if (wasStreamingBeforeBackground && !isStreaming && hasCameraPermission()) {
+            startStreaming()
+        }
+        wasStreamingBeforeBackground = false
     }
 
     override fun onStop() {
+        wasStreamingBeforeBackground = isStreaming
         runCatching {
             (getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
                 ?.unregisterDisplayListener(displayRotationListener)
@@ -351,6 +357,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        StreamingForegroundService.stop(this)
         if (::streamingSession.isInitialized) {
             streamingSession.shutdown()
             if (::rtspServer.isInitialized) rtspServer.stop()
@@ -861,6 +868,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startStreaming() {
+        StreamingForegroundService.start(this)
         if (::rtspServer.isInitialized) {
             rtspServer.clearCachedVideoConfig()
         }
@@ -868,6 +876,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun restartStreaming(reason: String) {
+        StreamingForegroundService.start(this)
         if (::rtspServer.isInitialized) {
             rtspServer.clearCachedVideoConfig()
         }
@@ -875,6 +884,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopStreaming(status: String, keepServerAlive: Boolean = false) {
+        StreamingForegroundService.stop(this)
         if (::rtspServer.isInitialized) {
             rtspServer.clearCachedVideoConfig()
         }

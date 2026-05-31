@@ -81,7 +81,7 @@ class MjpegHttpServer(
             val socket = ServerSocket()
             serverSocket = socket
             socket.reuseAddress = true
-            socket.bind(InetSocketAddress(port))
+            socket.bind(InetSocketAddress("127.0.0.1", port))
 
             while (running.get()) {
                 try {

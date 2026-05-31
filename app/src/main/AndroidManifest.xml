@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -44,6 +46,11 @@
                 <action android:name="com.opencode.multilensipcam.TOGGLE" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".StreamingForegroundService"
+            android:foregroundServiceType="camera"
+            android:exported="false" />
     </application>
 
 </manifest>
