@@ -21,7 +21,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Range
 import android.util.Size
+import android.graphics.SurfaceTexture
 import android.view.Surface
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -322,6 +324,7 @@ class MainActivity : AppCompatActivity() {
         updateBatteryStatus(registerReceiver(batteryStatusReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED)))
         checkPermissionAndLoad()
         handleStreamIntent(intent)
+        setupPreviewSurfaceListener()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -341,6 +344,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupPreviewSurfaceListener() {
+        binding.previewView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+                if (wasStreamingBeforeBackground && !isStreaming && hasCameraPermission()) {
+                    startStreaming()
+                }
+                wasStreamingBeforeBackground = false
+            }
+
+            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                if (isStreaming) {
+                    wasStreamingBeforeBackground = true
+                    streamingSession.shutdown()
+                    StreamingForegroundService.stop(this@MainActivity)
+                    updateKeepScreenOn(false)
+                    updateStreamingUiState()
+                    updateUrl()
+                    updateParameterSummary()
+                    updateStatus("Surface destroyed")
+                }
+                return true
+            }
+
+            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
+            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         (getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)?.registerDisplayListener(
@@ -355,10 +386,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        if (isStreaming) {
-            stopStreaming("Stopped by background")
-        }
-        wasStreamingBeforeBackground = false
+        wasStreamingBeforeBackground = isStreaming
         runCatching {
             (getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
                 ?.unregisterDisplayListener(displayRotationListener)
