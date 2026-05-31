@@ -10,6 +10,9 @@ enum class WebHttpRoute {
     H264,
     AUDIO,
     STATE,
+    STREAM_START,
+    STREAM_STOP,
+    STREAM_TOGGLE,
     DEBUG_STREAM,
     DEBUG_DIAGNOSTICS,
     DEBUG_CAMERAS,
@@ -39,6 +42,9 @@ object WebHttpRoutes {
             target == "/h264" || target == "/video.h264" -> WebHttpRoute.H264
             target == "/audio.aac" -> WebHttpRoute.AUDIO
             target == "/api/state" -> WebHttpRoute.STATE
+            target == "/api/start" -> WebHttpRoute.STREAM_START
+            target == "/api/stop" -> WebHttpRoute.STREAM_STOP
+            target == "/api/toggle" -> WebHttpRoute.STREAM_TOGGLE
             target == "/api/debug/stream" -> WebHttpRoute.DEBUG_STREAM
             target == "/api/debug/diagnostics" -> WebHttpRoute.DEBUG_DIAGNOSTICS
             target == "/api/debug/cameras" || target == "/api/debug/camera-report" -> WebHttpRoute.DEBUG_CAMERAS

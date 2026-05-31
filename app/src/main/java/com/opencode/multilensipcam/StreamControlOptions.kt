@@ -28,6 +28,7 @@ object StreamControlOptions {
     val preset1080p30 = StreamPreset("1080p 30fps 75%", 1920, 1080, 30, 75)
     val preset4k30 = StreamPreset("4K 30fps 60%", 3840, 2160, 30, 60)
     val preset720p30 = StreamPreset("720p 30fps 100%", 1280, 720, 30, 100)
+    val preset480p15 = StreamPreset("480p 15fps 40%", 640, 480, 15, 40)
     val preset720p60 = preset720p30
 
     const val defaultQuality = 60
@@ -38,6 +39,7 @@ object StreamControlOptions {
             "4k30" -> preset4k30
             "720p30" -> preset720p30
             "720p60" -> preset720p30
+            "480p15" -> preset480p15
             else -> null
         }
     }

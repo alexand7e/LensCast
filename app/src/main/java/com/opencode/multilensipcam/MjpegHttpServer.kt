@@ -223,6 +223,16 @@ class MjpegHttpServer(
                     mediaStreams.writeAudio(socket, audioRequestHandler, query["wait"] == "1")
                 }
                 WebHttpRoute.STATE -> controlResponses.writeState(diagnosticOutput())
+                WebHttpRoute.STREAM_START -> controlResponses.handleControl(diagnosticOutput(), mapOf("streaming" to "true"))
+                WebHttpRoute.STREAM_STOP -> controlResponses.handleControl(diagnosticOutput(), mapOf("stopStreaming" to "true", "streaming" to "false"))
+                WebHttpRoute.STREAM_TOGGLE -> {
+                    val isStreaming = stateProvider().streaming
+                    if (isStreaming) {
+                        controlResponses.handleControl(diagnosticOutput(), mapOf("stopStreaming" to "true", "streaming" to "false"))
+                    } else {
+                        controlResponses.handleControl(diagnosticOutput(), mapOf("streaming" to "true"))
+                    }
+                }
                 WebHttpRoute.DEBUG_STREAM -> writeDebugStream(diagnosticOutput())
                 WebHttpRoute.DEBUG_DIAGNOSTICS -> writeDiagnostics(diagnosticOutput())
                 WebHttpRoute.DEBUG_CAMERAS -> cameraDebugResponses.writeDebugCameras(diagnosticOutput())

@@ -369,6 +369,23 @@ object WebDashboardPage {
                   padding-top: 10px;
                   border-top: 1px solid rgba(192, 210, 210, 0.16);
                 }
+                .api-quick-links {
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-top: 8px;
+                  padding-top: 8px;
+                  border-top: 1px solid rgba(192, 210, 210, 0.16);
+                  flex-wrap: wrap;
+                }
+                .api-quick-label {
+                  color: var(--muted);
+                  font-size: 0.85em;
+                }
+                .api-quick-links .button {
+                  font-size: 0.8em;
+                  padding: 3px 10px;
+                }
                 .audio-status {
                   color: var(--muted);
                   font-size: 12px;
@@ -548,6 +565,12 @@ object WebDashboardPage {
                       <a class="button" href="/snapshot.jpg" target="_blank" rel="noreferrer" data-i18n="snapshot">Snapshot</a>
                       <button id="streamingToggleButton" class="button primary" type="button" disabled data-i18n="startStreaming">Start streaming</button>
                     </div>
+                    <div class="api-quick-links">
+                      <span class="api-quick-label">API:</span>
+                      <a class="button" href="/api/start" data-i18n="apiStart">Start</a>
+                      <a class="button danger" href="/api/stop" data-i18n="apiStop">Stop</a>
+                      <a class="button" href="/api/toggle" data-i18n="apiToggle">Toggle</a>
+                    </div>
                     <div class="audio-strip">
                       <label class="inline-toggle">
                         <input id="audioToggle" type="checkbox">
@@ -575,6 +598,7 @@ object WebDashboardPage {
                           <button class="button" type="button" data-preset="4k30">4K 30 fps 60%</button>
                           <button class="button" type="button" data-preset="1080p30">1080p 30 fps 75%</button>
                           <button class="button" type="button" data-preset="720p30">720p 30 fps 100%</button>
+                          <button class="button" type="button" data-preset="480p15">480p 15 fps 40%</button>
                         </div>
                       </div>
 
@@ -779,6 +803,9 @@ object WebDashboardPage {
                     starting: 'Starting...',
                     stopStreaming: 'Stop streaming',
                     stopping: 'Stopping...',
+                    apiStart: 'Start',
+                    apiStop: 'Stop',
+                    apiToggle: 'Toggle',
                     configuration: 'Configuration',
                     loading: 'Loading',
                     camera: 'Camera',
@@ -903,6 +930,9 @@ object WebDashboardPage {
                   starting: '正在开始...',
                   stopStreaming: '停止直播',
                   stopping: '正在停止...',
+                  apiStart: '开始',
+                  apiStop: '停止',
+                  apiToggle: '切换',
                   configuration: '配置',
                   loading: '加载中',
                   camera: '摄像头',
