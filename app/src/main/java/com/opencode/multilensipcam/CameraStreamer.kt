@@ -78,10 +78,10 @@ class CameraStreamer(
     private var currentTargetSurfaces: List<String> = emptyList()
     private var highSpeedSessionActive: Boolean = false
     private var activePreviewSurface: Surface? = null
+    private var activeBackgroundSurface: Surface? = null
     private var activeReaderSurface: Surface? = null
     private var activeEncoderSurface: Surface? = null
     private var backgroundSurfaceTexture: SurfaceTexture? = null
-    private var backgroundSurface: Surface? = null
     private val streamGeneration = AtomicLong(0L)
     private val overlayTimeFormat = SimpleDateFormat("MM/dd/yy HH:mm:ss", Locale.US)
     private val overlayRenderer = PixelFontOverlayRenderer()
@@ -115,6 +115,17 @@ class CameraStreamer(
         val previewHeight = config.outputSize.height
         textureView.setDefaultBufferSize(previewWidth, previewHeight)
         val previewSurface = Surface(textureView)
+
+        val bgSurfaceTexture = try {
+            SurfaceTexture(0)
+        } catch (_: Exception) {
+            null
+        }
+        if (bgSurfaceTexture != null) {
+            bgSurfaceTexture.setDefaultBufferSize(previewWidth, previewHeight)
+            activeBackgroundSurface = Surface(bgSurfaceTexture)
+            backgroundSurfaceTexture = bgSurfaceTexture
+        }
 
         val imageFormat = when (activeMjpegPipeline) {
             MjpegPipeline.YUV_JPEG -> ImageFormat.YUV_420_888
@@ -251,7 +262,7 @@ class CameraStreamer(
                         return
                     }
                     cameraDevice = camera
-                    createSession(camera, config.option, previewSurface, generation)
+                    createSession(camera, config.option, previewSurface, activeBackgroundSurface, generation)
                 }
 
                 override fun onDisconnected(camera: CameraDevice) {
@@ -296,6 +307,7 @@ class CameraStreamer(
         currentTargetSurfaces = emptyList()
         highSpeedSessionActive = false
         activePreviewSurface = null
+        activeBackgroundSurface = null
         activeReaderSurface = null
         activeEncoderSurface = null
         stopThread()
@@ -364,6 +376,7 @@ class CameraStreamer(
         camera: CameraDevice,
         option: CameraLensOption,
         previewSurface: Surface,
+        backgroundSurface: Surface?,
         generation: Long
     ) {
         if (!isCurrentCameraStream(generation, camera)) {
@@ -373,11 +386,12 @@ class CameraStreamer(
         val encoderSurface = encoderInputSurface
         val config = currentConfig ?: return
         activePreviewSurface = previewSurface
+        activeBackgroundSurface = backgroundSurface
         activeReaderSurface = readerSurface
         activeEncoderSurface = encoderSurface
         val highSpeedFallback = highSpeedFallbackReason(config, option, encoderSurface)
         if (highSpeedFallback == null && encoderSurface != null) {
-            createHighSpeedSession(camera, previewSurface, readerSurface, encoderSurface, generation)
+            createHighSpeedSession(camera, previewSurface, readerSurface, encoderSurface, backgroundSurface, generation)
             return
         } else if (config.highSpeedVideoEnabled) {
             updateStreamDebugState(
@@ -391,17 +405,17 @@ class CameraStreamer(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && option.physicalCameraId != null) {
             runCatching {
-                createPhysicalSession(camera, option.physicalCameraId, previewSurface, readerSurface, encoderSurface, generation)
+                createPhysicalSession(camera, option.physicalCameraId, previewSurface, readerSurface, encoderSurface, backgroundSurface, generation)
             }.onFailure {
                 onStatus("Physical session fallback")
                 if (isCurrentCameraStream(generation, camera)) {
-                    createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, generation)
+                    createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, backgroundSurface, generation)
                 }
             }
             return
         }
 
-        createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, generation)
+        createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, backgroundSurface, generation)
     }
 
     private fun highSpeedFallbackReason(
@@ -424,6 +438,7 @@ class CameraStreamer(
         previewSurface: Surface,
         readerSurface: Surface,
         encoderSurface: Surface,
+        backgroundSurface: Surface?,
         generation: Long
     ) {
         if (!isCurrentCameraStream(generation, camera)) {
@@ -438,7 +453,7 @@ class CameraStreamer(
         )
         runCatching {
             camera.createConstrainedHighSpeedCaptureSession(
-                listOf(previewSurface, encoderSurface),
+                listOfNotNull(previewSurface, encoderSurface, backgroundSurface),
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(session: CameraCaptureSession) {
                         if (!isCurrentCameraStream(generation, camera)) {
@@ -450,18 +465,18 @@ class CameraStreamer(
                             onStatus("High-speed session unavailable; using regular session")
                             runCatching { session.close() }
                             highSpeedSessionActive = false
-                            updateStreamDebugState(
-                                sessionMode = "regular",
-                                sessionModeReason = "configured-session-not-high-speed",
-                                requestTemplate = null,
-                                targetSurfaces = emptyList(),
-                                highSpeedActive = false
-                            )
-                            createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, generation)
-                            return
-                        }
-                        captureSession = session
-                        startHighSpeedRepeating(camera, previewSurface, encoderSurface, highSpeedSession, generation)
+                        updateStreamDebugState(
+                            sessionMode = "regular",
+                            sessionModeReason = "configured-session-not-high-speed",
+                            requestTemplate = null,
+                            targetSurfaces = emptyList(),
+                            highSpeedActive = false
+                        )
+                        createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, backgroundSurface, generation)
+                        return
+                    }
+                    captureSession = session
+                    startHighSpeedRepeating(camera, previewSurface, encoderSurface, highSpeedSession, generation)
                     }
 
                     override fun onConfigureFailed(session: CameraCaptureSession) {
@@ -479,11 +494,11 @@ class CameraStreamer(
                             targetSurfaces = emptyList(),
                             highSpeedActive = false
                         )
-                        createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, generation)
-                    }
-                },
-                backgroundHandler
-            )
+                        createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, backgroundSurface, generation)
+                        }
+                    },
+                    backgroundHandler
+                )
         }.onFailure {
             if (!isCurrentCameraStream(generation, camera)) {
                 return@onFailure
@@ -497,7 +512,7 @@ class CameraStreamer(
                 targetSurfaces = emptyList(),
                 highSpeedActive = false
             )
-            createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, generation)
+            createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, backgroundSurface, generation)
         }
     }
 
@@ -506,13 +521,14 @@ class CameraStreamer(
         previewSurface: Surface,
         readerSurface: Surface,
         encoderSurface: Surface?,
+        backgroundSurface: Surface?,
         generation: Long
     ) {
         if (!isCurrentCameraStream(generation, camera)) {
             return
         }
         camera.createCaptureSession(
-            listOfNotNull(previewSurface, readerSurface, encoderSurface),
+            listOfNotNull(previewSurface, readerSurface, encoderSurface, backgroundSurface),
             object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(session: CameraCaptureSession) {
                     if (!isCurrentCameraStream(generation, camera)) {
@@ -543,6 +559,7 @@ class CameraStreamer(
         previewSurface: Surface,
         readerSurface: Surface,
         encoderSurface: Surface?,
+        backgroundSurface: Surface?,
         generation: Long
     ) {
         if (!isCurrentCameraStream(generation, camera)) {
@@ -557,6 +574,11 @@ class CameraStreamer(
         val outputs = mutableListOf(previewOutput, readerOutput)
         if (encoderSurface != null) {
             outputs += OutputConfiguration(encoderSurface).apply {
+                setPhysicalCameraId(physicalCameraId)
+            }
+        }
+        if (backgroundSurface != null) {
+            outputs += OutputConfiguration(backgroundSurface).apply {
                 setPhysicalCameraId(physicalCameraId)
             }
         }
@@ -789,7 +811,7 @@ class CameraStreamer(
             isCurrentCameraStream(capturedGeneration, capturedCamera) &&
             captureSession == null
         ) {
-            createLogicalSession(capturedCamera, previewSurface, readerSurface, encoderSurface, capturedGeneration)
+            createLogicalSession(capturedCamera, previewSurface, readerSurface, encoderSurface, activeBackgroundSurface, capturedGeneration)
         }
     }
 
@@ -802,60 +824,27 @@ class CameraStreamer(
     }
 
     fun switchToBackgroundMode() {
-        backgroundHandler?.post {
-            val camera = cameraDevice ?: return@post
-            val config = currentConfig ?: return@post
-            val oldSession = captureSession ?: return@post
-            val readerSurface = activeReaderSurface ?: return@post
-            val encoderSurface = activeEncoderSurface
-            val generation = streamGeneration.get()
-
-            val bgSurfaceTexture = try {
-                SurfaceTexture(0)
-            } catch (_: Exception) {
-                return@post
-            }
-            bgSurfaceTexture.setDefaultBufferSize(config.outputSize.width, config.outputSize.height)
-            val bgSurface = Surface(bgSurfaceTexture)
-            backgroundSurfaceTexture = bgSurfaceTexture
-            backgroundSurface = bgSurface
-            activePreviewSurface = bgSurface
-
-            runCatching { oldSession.stopRepeating() }
-            runCatching { oldSession.close() }
-            captureSession = null
-
-            createLogicalSession(camera, bgSurface, readerSurface, encoderSurface, generation)
-        }
+        val bgSurface = activeBackgroundSurface ?: return
+        activePreviewSurface = bgSurface
+        backgroundHandler?.post { rebuildRepeatingRequest() }
     }
 
     fun switchToForegroundMode(textureView: SurfaceTexture) {
-        backgroundHandler?.post {
-            val camera = cameraDevice ?: return@post
-            val config = currentConfig ?: return@post
-            val oldSession = captureSession ?: return@post
-            val readerSurface = activeReaderSurface ?: return@post
-            val encoderSurface = activeEncoderSurface
-            val generation = streamGeneration.get()
-
-            releaseBackgroundSurface()
-
-            textureView.setDefaultBufferSize(config.outputSize.width, config.outputSize.height)
-            val previewSurface = Surface(textureView)
-            activePreviewSurface = previewSurface
-
-            runCatching { oldSession.stopRepeating() }
-            runCatching { oldSession.close() }
-            captureSession = null
-
-            createLogicalSession(camera, previewSurface, readerSurface, encoderSurface, generation)
-        }
+        val config = currentConfig ?: return
+        textureView.setDefaultBufferSize(config.outputSize.width, config.outputSize.height)
+        val previewSurface = Surface(textureView)
+        activePreviewSurface = previewSurface
+        backgroundHandler?.post { rebuildRepeatingRequest() }
     }
 
     private fun releaseBackgroundSurface() {
-        backgroundSurface?.let { runCatching { it.release() } }
-        backgroundSurfaceTexture?.let { runCatching { it.release() } }
-        backgroundSurface = null
+        backgroundSurfaceTexture?.let { bgSt ->
+            runCatching { bgSt.release() }
+        }
+        activeBackgroundSurface?.let { bgS ->
+            runCatching { bgS.release() }
+        }
+        activeBackgroundSurface = null
         backgroundSurfaceTexture = null
     }
 

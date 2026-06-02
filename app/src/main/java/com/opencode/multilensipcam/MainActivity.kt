@@ -915,7 +915,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startStreaming() {
-        StreamingForegroundService.start(this)
+        try {
+            StreamingForegroundService.start(this)
+        } catch (_: Exception) {
+            // App in background: foreground service cannot be started,
+            // but camera streaming without wakelock still works partially.
+        }
         if (::rtspServer.isInitialized) {
             rtspServer.clearCachedVideoConfig()
         }
@@ -923,7 +928,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun restartStreaming(reason: String) {
-        StreamingForegroundService.start(this)
+        try {
+            StreamingForegroundService.start(this)
+        } catch (_: Exception) {
+            // App in background: foreground service cannot be started.
+        }
         if (::rtspServer.isInitialized) {
             rtspServer.clearCachedVideoConfig()
         }
